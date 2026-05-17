@@ -1,0 +1,12 @@
+[
+  {"timestamp": "2023-10-27T10:00:01Z", "service": "web-server", "level": "INFO", "message": "User login successful", "trace_id": "trace-1023"},
+  {"timestamp": "2023-10-27T10:00:05Z", "service": "payment-gateway", "level": "INFO", "message": "Payment processing started", "trace_id": "trace-4051"},
+  {"timestamp": "2023-10-27T10:00:06Z", "service": "payment-gateway", "level": "ERROR", "message": "Connection to bank API timed out", "trace_id": "trace-4051"},
+  {"timestamp": "2023-10-27T10:00:10Z", "service": "auth-service", "level": "DEBUG", "message": "Token validated", "trace_id": "trace-9912"},
+  {"timestamp": "2023-10-27T10:00:15Z", "service": "database", "level": "WARNING", "message": "High memory usage detected", "trace_id": "trace-0000"},
+  {"timestamp": "2023-10-27T10:00:20Z", "service": "web-server", "level": "INFO", "message": "Serving dashboard page", "trace_id": "trace-2041"},
+  {"timestamp": "2023-10-27T10:00:22Z", "service": "payment-gateway", "level": "ERROR", "message": "Invalid credit card details", "trace_id": "trace-8821"},
+  {"timestamp": "2023-10-27T10:00:30Z", "service": "database", "level": "ERROR", "message": "Deadlock detected in transaction", "trace_id": "trace-5561"},
+  {"timestamp": "2023-10-27T10:00:35Z", "service": "auth-service", "level": "INFO", "message": "Password reset email sent", "trace_id": "trace-1123"},
+  {"timestamp": "2023-10-27T10:00:40Z", "service": "web-server", "level": "ERROR", "message": "500 Internal Server Error", "trace_id": "trace-6789"}
+]

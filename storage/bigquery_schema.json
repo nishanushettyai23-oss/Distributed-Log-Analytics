@@ -1,0 +1,32 @@
+[
+  {
+    "name": "timestamp",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Log generation time"
+  },
+  {
+    "name": "service",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Name of the microservice"
+  },
+  {
+    "name": "level",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Log level (INFO, ERROR, etc.)"
+  },
+  {
+    "name": "message",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "The actual log message"
+  },
+  {
+    "name": "trace_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Distributed tracing ID"
+  }
+]
