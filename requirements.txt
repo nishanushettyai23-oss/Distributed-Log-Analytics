@@ -1,6 +1,8 @@
-google-cloud-pubsub==2.18.4
 google-cloud-bigquery==3.11.4
 google-cloud-storage==2.10.0
-apache-beam[gcp]==2.50.0
 pyspark==3.4.1
 requests==2.31.0
+faker==18.0.0
+pandas==2.0.0
+numpy==1.24.0
+Flask==3.0.3

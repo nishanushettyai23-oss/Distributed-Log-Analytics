@@ -1,22 +1,67 @@
-# Architecture Overview
+# Architecture Explanation
 
-## System Overview
-The "Distributed Log Analytics for Cloud Infrastructure" project is designed to handle high-throughput log ingestion, real-time stream processing, batch processing, and advanced analytics on Google Cloud Platform (GCP). It enables real-time monitoring and anomaly detection for microservices.
+## Overview
 
-## Data Flow
-1. **Generation:** Services or simulated scripts generate JSON-formatted logs.
-2. **Ingestion:** Logs are published to Google Cloud Pub/Sub, acting as a highly available message broker.
-3. **Stream Processing:** Apache Beam (via Dataflow) consumes the Pub/Sub stream, filters for errors or critical events, and writes them to BigQuery for real-time analysis.
-4. **Batch Processing:** Apache Spark (via Dataproc) reads raw logs stored in Cloud Storage (archived from Pub/Sub) to perform complex aggregations, like error counts per service over time.
-5. **Storage:** BigQuery serves as the enterprise data warehouse, while Cloud Storage acts as a data lake for raw logs.
-6. **Analytics & Alerting:** SQL queries analyze BigQuery data. A Python-based anomaly detection script runs periodically, triggering Cloud Functions for alerting when thresholds are breached.
-7. **Visualization:** Looker Studio connects to BigQuery to present real-time dashboards.
+The Distributed Log Analytics and Anomaly Detection System is a large-scale batch analytics platform for cloud and system logs. It uses Docker for reproducible dataset preparation and status-page deployment, Google Cloud Storage for raw and processed log storage, Dataproc for Apache Spark distributed computation, BigQuery for analytics tables, and Looker Studio for dashboards.
 
-## Component Mapping to GCP Services
-- **Message Broker:** Cloud Pub/Sub
-- **Stream Processing:** Dataflow (Apache Beam)
-- **Batch Processing:** Dataproc (Apache Spark)
-- **Data Warehouse:** BigQuery
-- **Data Lake:** Cloud Storage
-- **Serverless Compute (Alerting):** Cloud Functions
-- **BI/Visualization:** Looker Studio
+The demonstration is focused on large batch processing with Spark on cloud infrastructure.
+
+## Architecture Flow
+
+```text
+Large LogHub HDFS Dataset
+        |
+        v
+Docker Dataset Prep Tool
+        |
+        v
+Google Cloud Storage
+        |
+        v
+Dataproc Apache Spark Cluster
+        |
+        v
+Spark Parsing, Feature Extraction, Analytics, Anomaly Detection
+        |
+        +----------------------+
+        |                      |
+        v                      v
+GCS Parquet Output       BigQuery Analytics Tables
+                               |
+                               v
+                        Looker Studio Dashboard
+
+Compute Engine VM
+        |
+        v
+Dockerized Flask Status Page
+```
+
+## Component Roles
+
+- Docker packages the dataset validator/uploader and Flask status page.
+- Google Cloud Storage stores the full HDFS dataset, Spark job file, and processed Parquet outputs.
+- Dataproc runs Apache Spark across one master node and two worker nodes.
+- Spark parses HDFS log lines, extracts block/component/time features, computes analytics, and detects anomalies.
+- BigQuery stores `processed_logs`, `error_frequency`, `level_distribution`, `component_failures`, `temporal_analysis`, and `anomalies`.
+- Looker Studio visualizes trends, distributions, failures, and anomaly counts.
+- Compute Engine optionally hosts the Dockerized status page for cloud deployment evidence.
+
+## Big Data Concepts Demonstrated
+
+- Distributed processing through Spark executors on Dataproc worker nodes.
+- Parallel file reads from GCS.
+- Batch transformations and aggregations over a large HDFS log dataset.
+- Fault tolerance through Spark partition recomputation.
+- Scalable output storage through GCS and BigQuery.
+- Statistical anomaly detection over aggregated log behavior.
+
+## Cloud Computing Concepts Demonstrated
+
+- Managed compute with Dataproc.
+- Virtual machines through Dataproc nodes and Compute Engine.
+- Object storage with GCS.
+- Managed data warehouse with BigQuery.
+- Containerization with Docker.
+- IAM-controlled access between compute, storage, and analytics services.
+- Monitoring and logging through Dataproc job logs and Cloud Monitoring.

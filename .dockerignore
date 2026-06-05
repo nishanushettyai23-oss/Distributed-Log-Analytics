@@ -1,0 +1,17 @@
+.git
+.gitignore
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+spark_output/
+dataset/HDFS_full/
+dataset/HDFS_v1/
+dataset/HDFS_v2/
+dataset/HDFS_v3_TraceBench/
+
+.env
+*.key
+service-account*.json
+CCTA Tutorial Guidelines and Rubrics*

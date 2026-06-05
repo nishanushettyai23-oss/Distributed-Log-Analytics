@@ -1,130 +1,157 @@
-# Distributed Log Analytics for Cloud Infrastructure using GCP
+# Distributed Log Analytics and Anomaly Detection on GCP
 
 ## Description
-A scalable, highly available distributed data pipeline designed to ingest, process, store, and analyze application logs from cloud infrastructure using Google Cloud Platform (GCP).
 
-## 📋 Project Overview
+This project analyzes a large LogHub HDFS dataset using Apache Spark on Google Cloud Dataproc. Raw logs are stored in Google Cloud Storage, processed in parallel on a managed Spark cluster, written to BigQuery, and visualized in Looker Studio. Docker is used for reproducible dataset preparation and for a lightweight Flask status page that can run locally or on a Compute Engine VM.
 
-This project implements a complete log analytics platform leveraging GCP services to handle massive-scale log ingestion, real-time processing, storage, and visualization. The architecture supports both streaming and batch processing workflows for comprehensive insights into cloud infrastructure performance and issues.
+This project uses large-scale batch processing only.
 
-## 🏗️ Architecture Components
+## Architecture
 
-- **Ingestion**: Pub/Sub for real-time log streaming
-- **Streaming Pipeline**: Apache Beam/Dataflow for real-time processing
-- **Batch Processing**: Apache Spark for large-scale historical data analysis
-- **Storage**: BigQuery for data warehouse and long-term storage
-- **Analytics**: Anomaly detection and complex query capabilities
-- **Alerting**: Cloud Functions for automated alerting based on log patterns
-- **Visualization**: Dashboards and reporting tools
+```text
+Large LogHub HDFS Dataset
+        |
+        v
+Docker Dataset Prep Tool
+        |
+        v
+Google Cloud Storage
+        |
+        v
+Dataproc Apache Spark
+        |
+        v
+Spark Feature Extraction and Anomaly Detection
+        |
+        +----------------------+
+        |                      |
+        v                      v
+GCS Parquet Output       BigQuery Analytics Tables
+                               |
+                               v
+                        Looker Studio Dashboard
 
-## 📁 Project Structure
-
-```
-├── ingestion/              # Log ingestion components
-│   ├── pubsub_publisher.py # Pub/Sub publisher for log streaming
-│   └── create_topic.sh     # Setup script for Pub/Sub topics
-├── streaming/              # Real-time streaming pipeline
-│   └── pipeline.py         # Apache Beam/Dataflow pipeline
-├── batch_processing/       # Batch analysis jobs
-│   └── spark_job.py        # Apache Spark job for batch processing
-├── storage/                # Data warehouse configuration
-│   ├── bigquery_schema.json # BigQuery table schema
-│   └── create_table.sql    # DDL for table creation
-├── analytics/              # Analytics and querying
-│   ├── anomaly_detection.py # Anomaly detection algorithms
-│   └── queries.sql         # Common analytics queries
-├── alerting/               # Alert generation and routing
-│   └── cloud_function.py   # Cloud Function for alerts
-├── deployment/             # Infrastructure setup
-│   └── setup_gcp.sh        # GCP deployment automation
-├── visualization/          # Data visualization and dashboards
-├── tests/                  # Unit and integration tests
-└── data/                   # Sample data for testing
+Optional evidence layer:
+Compute Engine VM -> Dockerized Flask Status Page
 ```
 
-## 🚀 Getting Started
+## Main Components
 
-### Prerequisites
-- Python 3.8+
-- Google Cloud Platform account with appropriate permissions
-- Apache Spark (for batch processing)
-- Apache Beam SDK (for streaming)
+- `batch_processing/spark_job.py`: Dataproc PySpark job for parsing, feature extraction, analytics, anomaly detection, GCS output, and BigQuery writes.
+- `deployment/prepare_large_dataset.py`: Docker-friendly validator/uploader for the full HDFS dataset.
+- `visualization/flask_app.py`: Dockerized Flask status page for local or Compute Engine deployment.
+- `docs/GCP_DEPLOYMENT_GUIDE.md`: Step-by-step GCP execution guide.
+- `docs/GCP_CLOUD_EXECUTION_PLAN.md`: Report outline aligned with the cloud deployment rubric.
 
-### Installation
+## Dataset
 
-1. Clone the repository:
+The final demo should use the full LogHub HDFS dataset stored locally at:
+
+```text
+dataset/HDFS_full/HDFS.log
+```
+
+This large dataset is ignored by Git and should be uploaded to:
+
+```text
+gs://distributed-log-analytics-raw-logs/loghub/hdfs/full/HDFS.log
+```
+
+The included `dataset/HDFS_2k/HDFS_2k.log` file is only for quick smoke testing.
+
+## Docker Quick Start
+
+Build the image:
+
 ```bash
-git clone https://github.com/nishanushettyai23-oss/Distributed-Log-Analytics.git
-cd Distributed-Log-Analytics
+docker build -t distributed-log-analytics:latest .
 ```
 
-2. Install dependencies:
+Run the status page locally:
+
 ```bash
-pip install -r requirements.txt
+docker compose up --build
 ```
 
-3. Configure GCP:
+Open:
+
+```text
+http://localhost:8080
+```
+
+Validate a small smoke-test dataset without upload:
+
 ```bash
-gcloud auth application-default login
-gcloud config set project YOUR_PROJECT_ID
+docker run --rm -v "$PWD:/app" distributed-log-analytics:latest \
+  python deployment/prepare_large_dataset.py \
+  --local-path dataset/HDFS_2k/HDFS_2k.log \
+  --gcs-path gs://distributed-log-analytics-raw-logs/loghub/hdfs/smoke/HDFS_2k.log \
+  --allow-small \
+  --skip-upload
 ```
 
-4. Deploy infrastructure:
+## GCP Execution Summary
+
+1. Download the full LogHub HDFS dataset to `dataset/HDFS_full/HDFS.log`.
+2. Build the Docker image.
+3. Use the Docker dataset prep tool to validate and upload the large dataset to GCS.
+4. Upload `batch_processing/spark_job.py` to the GCS code bucket.
+5. Create a Dataproc cluster with 1 master and 2 workers.
+6. Submit the PySpark job on Dataproc.
+7. Verify output in GCS and BigQuery.
+8. Build Looker Studio charts from BigQuery tables.
+9. Optionally deploy the Dockerized Flask page on Compute Engine.
+
+Primary command:
+
 ```bash
-chmod +x deployment/setup_gcp.sh
-./deployment/setup_gcp.sh
+gcloud dataproc jobs submit pyspark gs://distributed-log-analytics-spark-code/jobs/spark_job.py \
+  --cluster=log-analytics-cluster \
+  --region=us-central1 \
+  --project=distributed-log-analytics \
+  --properties=spark.jars.packages=com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.42.1 \
+  -- \
+  --input gs://distributed-log-analytics-raw-logs/loghub/hdfs/full/HDFS.log \
+  --output gs://distributed-log-analytics-spark-output/results/hdfs_full \
+  --project-id distributed-log-analytics \
+  --bq-dataset logs_dataset \
+  --output-partitions 8 \
+  --write-bigquery
 ```
 
-## 📊 Usage
+Full instructions are in [docs/GCP_DEPLOYMENT_GUIDE.md](docs/GCP_DEPLOYMENT_GUIDE.md).
 
-### Start Streaming Pipeline
-```bash
-python streaming/pipeline.py
-```
+## BigQuery Outputs
 
-### Run Batch Analysis
-```bash
-spark-submit batch_processing/spark_job.py
-```
+The Spark job writes:
 
-### Publish Sample Logs
-```bash
-python ingestion/pubsub_publisher.py
-```
+- `logs_dataset.processed_logs`
+- `logs_dataset.error_frequency`
+- `logs_dataset.level_distribution`
+- `logs_dataset.component_failures`
+- `logs_dataset.temporal_analysis`
+- `logs_dataset.anomalies`
 
-### Run Tests
-```bash
-python -m pytest tests/
-```
+## Evidence for Evaluation
 
-## 🔍 Key Features
+Capture screenshots of:
 
-- **Real-time Processing**: Stream logs through Pub/Sub and Dataflow
-- **Batch Analysis**: Process historical data with Apache Spark
-- **Anomaly Detection**: Automatic detection of unusual patterns in logs
-- **Scalable Storage**: BigQuery for petabyte-scale analytics
-- **Automated Alerts**: Cloud Functions trigger alerts on critical events
-- **SQL Queries**: Complex analytics using standard SQL
+- Docker image build.
+- Docker container status page.
+- GCS bucket containing the full `HDFS.log`.
+- Dataproc cluster with 1 master and 2 workers.
+- Dataproc job details and driver logs.
+- GCS processed Parquet output.
+- BigQuery populated tables.
+- Looker Studio dashboard.
+- Compute Engine VM running the Dockerized Flask page.
 
-## 📝 Configuration
+## References
 
-See [architecture/explanation.md](architecture/explanation.md) for detailed architecture documentation and [docs/README.md](docs/README.md) for additional guides.
-
-## 🧪 Testing
-
-Run the test suite:
-```bash
-python -m pytest tests/ -v
-```
-
-## 🤝 Contributing
-
-Contributions are welcome! Please submit pull requests with clear descriptions of changes.
-
-## 📄 License
-
-This project is licensed under the MIT License - see LICENSE file for details.
-
-## 👤 Author
-
-Created by nishanushettyai23-oss
+- Google Cloud Dataproc: https://cloud.google.com/dataproc/docs
+- Google Cloud Storage: https://cloud.google.com/storage/docs
+- BigQuery: https://cloud.google.com/bigquery/docs
+- Compute Engine: https://cloud.google.com/compute/docs
+- Docker: https://docs.docker.com/
+- Apache Spark: https://spark.apache.org/docs/latest/
+- LogHub: https://github.com/logpai/loghub

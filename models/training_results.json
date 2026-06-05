@@ -1,0 +1,19 @@
+{
+  "HDFS_2k": {
+    "status": "success",
+    "model_path": "models\\hdfs_HDFS_2k_model.pkl",
+    "scaler_path": "models\\hdfs_HDFS_2k_scaler.pkl",
+    "samples": 2000,
+    "features": 9,
+    "timestamp": "2026-06-01T18:32:15.109913"
+  },
+  "HDFS_v1": {
+    "status": "not_found"
+  },
+  "HDFS_v2": {
+    "status": "not_found"
+  },
+  "HDFS_v3": {
+    "status": "not_found"
+  }
+}
