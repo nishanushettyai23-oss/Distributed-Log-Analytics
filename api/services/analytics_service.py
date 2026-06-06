@@ -1,5 +1,9 @@
 from datetime import datetime, timezone
 
+import re
+from datetime import datetime, timezone
+from pathlib import PurePath
+
 from cachetools import TTLCache, cachedmethod
 from google.cloud import bigquery
 
@@ -229,6 +233,24 @@ class AnalyticsService:
         )
         result.update({"input_uri": input_uri, "output_uri": output_uri})
         return result
+
+    def store_dataset(self, file_storage):
+        filename = PurePath(file_storage.filename or "").name
+        if not filename:
+            raise ValueError("Select a dataset file before uploading.")
+        extension = PurePath(filename).suffix.lower()
+        if extension not in {".log", ".txt", ".json"}:
+            raise ValueError("Supported dataset formats are .log, .txt, and .json.")
+
+        safe_stem = re.sub(r"[^A-Za-z0-9_-]+", "-", PurePath(filename).stem).strip("-") or "dataset"
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        object_name = f"uploads/{timestamp}/{safe_stem}{extension}"
+        return self.repository.upload_dataset(
+            self.config.RAW_BUCKET,
+            object_name,
+            file_storage.stream,
+            file_storage.mimetype,
+        )
 
     @cachedmethod(lambda self: self.cache)
     def infrastructure(self):

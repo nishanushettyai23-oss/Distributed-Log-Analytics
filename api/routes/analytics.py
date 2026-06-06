@@ -10,6 +10,16 @@ def service():
     return current_app.extensions["analytics_service"]
 
 
+def require_admin():
+    expected = str(current_app.config.get("PIPELINE_ADMIN_TOKEN") or "")
+    supplied = request.headers.get("X-Admin-Token", "")
+    if not expected:
+        return jsonify({"error": "Dataset administration is disabled until PIPELINE_ADMIN_TOKEN is configured."}), 503
+    if not hmac.compare_digest(expected, supplied):
+        return jsonify({"error": "Invalid administrator token."}), 403
+    return None
+
+
 @analytics_bp.get("/health")
 def health():
     return jsonify({"status": "ok", "service": "distributed-log-analytics-api"})
@@ -47,13 +57,9 @@ def infrastructure():
 
 @analytics_bp.post("/pipeline/submit")
 def submit_pipeline():
-    config = current_app.config
-    expected = str(config.get("PIPELINE_ADMIN_TOKEN") or "")
-    supplied = request.headers.get("X-Admin-Token", "")
-    if not expected:
-        return jsonify({"error": "Pipeline submission is disabled until PIPELINE_ADMIN_TOKEN is configured."}), 503
-    if not hmac.compare_digest(expected, supplied):
-        return jsonify({"error": "Invalid administrator token."}), 403
+    denied = require_admin()
+    if denied:
+        return denied
 
     payload = request.get_json(silent=True) or {}
     return jsonify(
@@ -62,3 +68,16 @@ def submit_pipeline():
             str(payload.get("output_name") or "").strip(),
         )
     ), 202
+
+
+@analytics_bp.post("/datasets/upload")
+def upload_dataset():
+    denied = require_admin()
+    if denied:
+        return denied
+    if request.content_length and request.content_length > current_app.config["MAX_UPLOAD_BYTES"]:
+        return jsonify({"error": "Dataset exceeds the configured upload limit."}), 413
+    dataset = request.files.get("dataset")
+    if not dataset:
+        return jsonify({"error": "Multipart field 'dataset' is required."}), 400
+    return jsonify(service().store_dataset(dataset)), 201

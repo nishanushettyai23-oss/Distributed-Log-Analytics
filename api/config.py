@@ -22,6 +22,7 @@ class Config:
         "SPARK_JOB_URI",
         f"gs://{PROJECT_ID}-spark-code/jobs/spark_job.py",
     )
+    MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(2 * 1024 * 1024 * 1024)))
 
     @property
     def table_ref(self):

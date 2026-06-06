@@ -16,6 +16,7 @@ from .services.query_service import QueryService
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.config["MAX_CONTENT_LENGTH"] = Config.MAX_UPLOAD_BYTES
     CORS(app, resources={r"/api/*": {"origins": os.getenv("CORS_ORIGINS", "*")}})
 
     config = Config()

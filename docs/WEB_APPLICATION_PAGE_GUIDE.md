@@ -27,9 +27,10 @@ This page applies a statistical z-score analysis to component, hour, node, and e
 This page has two responsibilities:
 
 1. Explore the ten-column `processed_logs` BigQuery table with search, filters, and pagination.
-2. Allow an administrator to submit another log file already stored in the raw GCS bucket to the Dataproc PySpark job.
+2. Allow an administrator to upload a `.log`, `.txt`, or `.json` dataset into the raw GCS bucket.
+3. Submit only the successfully stored GCS object to the Dataproc PySpark job.
 
-Public browser uploads are intentionally disabled because large datasets should not pass through Flask or the public VM. Upload them directly to GCS with the preparation script, then enter the resulting `gs://` URI in the page.
+The interface reports the GCS object URI, byte size, generation, Dataproc job ID, and output URI. These identifiers provide evidence that storage and processing are real cloud operations.
 
 ### BigQuery Explorer
 
@@ -54,7 +55,12 @@ This page creates PDF, Excel, and CSV evidence files from the same BigQuery-back
 
 ## Upload and process another dataset
 
-Upload a large local file from the project directory:
+Use the Dataset page for files up to the configured 2 GB limit. Select the file, enter the administrator token, and complete the two separate actions:
+
+1. **Upload and store in GCS**
+2. **Process with Dataproc PySpark**
+
+For very large files or unstable browser connections, upload from the project directory:
 
 ```bash
 docker compose run --rm api python deployment/prepare_large_dataset.py \
@@ -87,6 +93,25 @@ gcloud dataproc jobs describe JOB_ID \
   --region=us-central1 \
   --project=distributed-log-analytics
 ```
+
+The VM service account needs permission to create raw-bucket objects and submit Dataproc jobs. Grant narrowly scoped roles from an authorized Cloud Shell:
+
+```bash
+VM_SERVICE_ACCOUNT=$(gcloud compute instances describe log-analytics-platform \
+  --zone=us-central1-a \
+  --format='get(serviceAccounts[0].email)')
+
+gcloud storage buckets add-iam-policy-binding \
+  gs://distributed-log-analytics-raw-logs \
+  --member="serviceAccount:${VM_SERVICE_ACCOUNT}" \
+  --role="roles/storage.objectCreator"
+
+gcloud projects add-iam-policy-binding distributed-log-analytics \
+  --member="serviceAccount:${VM_SERVICE_ACCOUNT}" \
+  --role="roles/dataproc.editor"
+```
+
+The Spark job writes result tables in overwrite mode. When a submitted job completes, the dashboard and explorers represent the newly processed dataset. Refresh the application after the Dataproc job reaches `DONE`.
 
 ## Docker Desktop
 

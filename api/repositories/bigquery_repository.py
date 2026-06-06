@@ -45,6 +45,27 @@ class BigQueryRepository:
             "objects": len(blobs),
         }
 
+    def upload_dataset(self, bucket_name, object_name, stream, content_type):
+        client = storage.Client(project=self.project_id)
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(object_name)
+        blob.upload_from_file(
+            stream,
+            rewind=False,
+            content_type=content_type or "text/plain",
+            timeout=3600,
+        )
+        blob.reload()
+        return {
+            "bucket": bucket_name,
+            "object": object_name,
+            "gcs_uri": f"gs://{bucket_name}/{object_name}",
+            "size_bytes": int(blob.size or 0),
+            "content_type": blob.content_type,
+            "generation": str(blob.generation or ""),
+            "stored": True,
+        }
+
     def dataproc_cluster(self, region, cluster_name):
         client = dataproc_v1.ClusterControllerClient(
             client_options={"api_endpoint": f"{region}-dataproc.googleapis.com:443"}

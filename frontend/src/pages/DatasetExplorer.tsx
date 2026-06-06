@@ -7,6 +7,7 @@ import { LogRow } from "../types";
 
 type LogsResponse = { items: LogRow[]; page: number; page_size: number; total: number };
 type PipelineResult = { job_id: string; status: string; input_uri: string; output_uri: string; cluster_name: string; region: string };
+type UploadResult = { bucket:string; object:string; gcs_uri:string; size_bytes:number; content_type:string; generation:string; stored:boolean };
 
 function optionValues(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -28,8 +29,11 @@ export default function DatasetExplorer() {
   const [errorCode, setErrorCode] = useState("");
   const [hour, setHour] = useState("");
   const [inputUri,setInputUri]=useState("gs://distributed-log-analytics-raw-logs/loghub/hdfs/full/HDFS.log");
+  const [datasetFile,setDatasetFile]=useState<File>();
   const [outputName,setOutputName]=useState("hdfs-full");
   const [adminToken,setAdminToken]=useState("");
+  const [uploading,setUploading]=useState(false);
+  const [uploaded,setUploaded]=useState<UploadResult>();
   const [submitting,setSubmitting]=useState(false);
   const [pipeline,setPipeline]=useState<PipelineResult>();
   const [pipelineError,setPipelineError]=useState("");
@@ -43,6 +47,30 @@ export default function DatasetExplorer() {
   const componentOptions=optionValues(filters.data?.components);
   const nodeOptions=optionValues(filters.data?.nodes);
   const errorOptions=optionValues(filters.data?.error_codes);
+
+  async function uploadDataset() {
+    if(!datasetFile) return;
+    setUploading(true); setPipelineError(""); setUploaded(undefined); setPipeline(undefined);
+    try {
+      const form=new FormData();
+      form.append("dataset",datasetFile);
+      const response=await fetch("/api/datasets/upload",{
+        method:"POST",
+        headers:{"X-Admin-Token":adminToken},
+        body:form
+      });
+      const payload=await response.json();
+      if(!response.ok) throw new Error(payload.error||`Upload failed (${response.status})`);
+      const result=payload as UploadResult;
+      setUploaded(result);
+      setInputUri(result.gcs_uri);
+      setOutputName(datasetFile.name.replace(/\.[^.]+$/,"").replace(/[^A-Za-z0-9_-]+/g,"-").toLowerCase());
+    } catch(error) {
+      setPipelineError(error instanceof Error?error.message:"Dataset upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function submitPipeline() {
     setSubmitting(true); setPipelineError(""); setPipeline(undefined);
@@ -71,14 +99,18 @@ export default function DatasetExplorer() {
           <div><dt className="text-slate-500">Stored result</dt><dd className="mt-1 font-semibold">logs_dataset.processed_logs</dd></div>
         </dl>
       </Panel>
-      <Panel title="Submit another GCS dataset">
+      <Panel title="Store and process a dataset">
         <div className="space-y-3">
-          <label className="block text-xs font-medium text-slate-500">Input object under the raw-log bucket<input value={inputUri} onChange={e=>setInputUri(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 font-mono text-xs dark:border-slate-700 dark:bg-slate-900"/></label>
-          <div className="grid gap-3 sm:grid-cols-2"><label className="block text-xs font-medium text-slate-500">Output name<input value={outputName} onChange={e=>setOutputName(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"/></label><label className="block text-xs font-medium text-slate-500">Administrator token<input type="password" value={adminToken} onChange={e=>setAdminToken(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"/></label></div>
-          <button type="button" onClick={submitPipeline} disabled={submitting||!adminToken} className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-blue-600 text-sm font-semibold text-white disabled:opacity-50">{submitting?<LoaderCircle className="animate-spin" size={16}/>:<CloudUpload size={16}/>}Submit PySpark batch</button>
+          <label className="block text-xs font-medium text-slate-500">Log dataset (.log, .txt, or .json)<input type="file" accept=".log,.txt,.json,text/plain,application/json" onChange={e=>setDatasetFile(e.target.files?.[0])} className="mt-1 block w-full rounded-md border border-slate-200 bg-white p-2 text-xs dark:border-slate-700 dark:bg-slate-900"/></label>
+          <label className="block text-xs font-medium text-slate-500">Administrator token<input type="password" value={adminToken} onChange={e=>setAdminToken(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"/></label>
+          <button type="button" onClick={uploadDataset} disabled={uploading||!adminToken||!datasetFile} className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-blue-600 text-sm font-semibold text-blue-600 disabled:opacity-50">{uploading?<LoaderCircle className="animate-spin" size={16}/>:<CloudUpload size={16}/>} {uploading?"Uploading to GCS...":"1. Upload and store in GCS"}</button>
+          {uploaded&&<div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950"><div className="font-semibold">Stored in Google Cloud Storage</div><div className="mt-1 break-all">{uploaded.gcs_uri}</div><div className="mt-1">{(uploaded.size_bytes/1048576).toFixed(2)} MB - generation {uploaded.generation}</div></div>}
+          <label className="block text-xs font-medium text-slate-500">Stored GCS input<input value={inputUri} readOnly className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-slate-100 px-3 font-mono text-xs dark:border-slate-700 dark:bg-slate-800"/></label>
+          <label className="block text-xs font-medium text-slate-500">Output name<input value={outputName} onChange={e=>setOutputName(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"/></label>
+          <button type="button" onClick={submitPipeline} disabled={submitting||!adminToken||!uploaded} className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-blue-600 text-sm font-semibold text-white disabled:opacity-50">{submitting?<LoaderCircle className="animate-spin" size={16}/>:<CloudUpload size={16}/>} {submitting?"Submitting to Dataproc...":"2. Process with Dataproc PySpark"}</button>
           {pipelineError&&<p className="text-xs text-red-600">{pipelineError}</p>}
-          {pipeline&&<div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950"><div className="font-semibold">Dataproc job {pipeline.job_id} submitted</div><div className="mt-1 break-all">Output: {pipeline.output_uri}</div></div>}
-          <p className="text-xs leading-5 text-slate-500">This form references data already uploaded to GCS. Browser file uploads are intentionally disabled on the public site; large files are uploaded with the documented Docker/GCS preparation tool.</p>
+          {pipeline&&<div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-900 dark:bg-blue-950"><div className="font-semibold">Dataproc job {pipeline.job_id} submitted</div><div className="mt-1">Cluster: {pipeline.cluster_name} ({pipeline.region})</div><div className="mt-1 break-all">Output: {pipeline.output_uri}</div></div>}
+          <p className="text-xs leading-5 text-slate-500">The Process button remains disabled until GCS confirms storage. Large uploads can take several minutes; keep this page open until the stored object details appear.</p>
         </div>
       </Panel>
     </div>

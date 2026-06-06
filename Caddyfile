@@ -1,6 +1,11 @@
 {$DOMAIN} {
     encode gzip zstd
-    reverse_proxy frontend:80
+    reverse_proxy frontend:80 {
+        transport http {
+            read_timeout 3600s
+            write_timeout 3600s
+        }
+    }
 
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"

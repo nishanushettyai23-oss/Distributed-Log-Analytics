@@ -17,6 +17,7 @@ services:
       PROCESSED_RECORDS: 10685241
       PIPELINE_ADMIN_TOKEN: ${PIPELINE_ADMIN_TOKEN:-}
       SPARK_JOB_URI: ${SPARK_JOB_URI:-gs://distributed-log-analytics-spark-code/jobs/spark_job.py}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-2147483648}
     ports:
       - "127.0.0.1:8080:8080"
     healthcheck:
