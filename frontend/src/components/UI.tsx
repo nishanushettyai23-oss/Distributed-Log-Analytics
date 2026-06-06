@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { AlertCircle, ArrowUpRight, LucideIcon } from "lucide-react";
+import { AlertCircle, ArrowUpRight, CheckCircle2, LucideIcon } from "lucide-react";
 import { ReactNode } from "react";
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle: string; actions?: ReactNode }) {
@@ -24,6 +24,10 @@ export function Skeleton({ className = "" }: { className?: string }) {
 
 export function ErrorState({ error }: { error: Error }) {
   return <div className="glass flex items-start gap-3 rounded-lg border-red-200 p-5 text-red-700 dark:border-red-900 dark:text-red-300"><AlertCircle className="mt-0.5" /><div><div className="font-semibold">Cloud data unavailable</div><div className="mt-1 text-sm">{error.message}</div><div className="mt-2 text-xs opacity-75">Configure Google Application Default Credentials and BigQuery access for logs_dataset.processed_logs.</div></div></div>;
+}
+
+export function EmptyState({ title, detail }: { title: string; detail: string }) {
+  return <div className="grid min-h-52 place-items-center text-center"><div><CheckCircle2 className="mx-auto text-emerald-500" size={34}/><div className="mt-3 font-semibold">{title}</div><p className="mt-1 max-w-md text-sm leading-6 text-slate-500">{detail}</p></div></div>;
 }
 
 export function formatNumber(value: unknown) {

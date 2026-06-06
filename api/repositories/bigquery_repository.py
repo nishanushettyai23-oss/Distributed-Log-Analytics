@@ -79,3 +79,27 @@ class BigQueryRepository:
             if len(result) >= limit:
                 break
         return result
+
+    def submit_pyspark_job(self, region, cluster_name, main_python_file_uri, args):
+        client = dataproc_v1.JobControllerClient(
+            client_options={"api_endpoint": f"{region}-dataproc.googleapis.com:443"}
+        )
+        job = dataproc_v1.Job(
+            placement=dataproc_v1.JobPlacement(cluster_name=cluster_name),
+            pyspark_job=dataproc_v1.PySparkJob(
+                main_python_file_uri=main_python_file_uri,
+                args=args,
+                properties={
+                    "spark.jars.packages": "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.42.1"
+                },
+            ),
+        )
+        submitted = client.submit_job(
+            request={"project_id": self.project_id, "region": region, "job": job}
+        )
+        return {
+            "job_id": submitted.reference.job_id,
+            "region": region,
+            "cluster_name": cluster_name,
+            "status": "SUBMITTED",
+        }

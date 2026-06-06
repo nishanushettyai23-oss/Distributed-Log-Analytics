@@ -192,7 +192,43 @@ class AnalyticsService:
         FROM {self.table}
         """
         rows = self.repository.query(sql)["rows"]
-        return rows[0] if rows else {}
+        raw = rows[0] if rows else {}
+
+        def scalar(value):
+            if isinstance(value, dict):
+                return value.get("value") or value.get("name") or ""
+            return value
+
+        return {
+            key: sorted(
+                {str(scalar(value)) for value in (raw.get(key) or []) if scalar(value)}
+            )
+            for key in ("components", "nodes", "error_codes", "levels")
+        }
+
+    def submit_pipeline(self, input_uri, output_name):
+        expected_prefix = f"gs://{self.config.RAW_BUCKET}/"
+        if not input_uri.startswith(expected_prefix):
+            raise ValueError(f"Input must be stored under {expected_prefix}")
+        if not output_name or not output_name.replace("-", "").replace("_", "").isalnum():
+            raise ValueError("Output name may contain only letters, numbers, hyphens, and underscores")
+
+        output_uri = f"gs://{self.config.OUTPUT_BUCKET}/results/{output_name}"
+        args = [
+            "--input", input_uri,
+            "--output", output_uri,
+            "--project-id", self.config.PROJECT_ID,
+            "--bq-dataset", self.config.BQ_DATASET,
+            "--write-bigquery",
+        ]
+        result = self.repository.submit_pyspark_job(
+            self.config.REGION,
+            self.config.CLUSTER_NAME,
+            self.config.SPARK_JOB_URI,
+            args,
+        )
+        result.update({"input_uri": input_uri, "output_uri": output_uri})
+        return result
 
     @cachedmethod(lambda self: self.cache)
     def infrastructure(self):

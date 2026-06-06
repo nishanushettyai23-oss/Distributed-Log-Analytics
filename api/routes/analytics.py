@@ -1,3 +1,5 @@
+import hmac
+
 from flask import Blueprint, current_app, jsonify, request
 
 
@@ -41,3 +43,22 @@ def filters():
 @analytics_bp.get("/infrastructure")
 def infrastructure():
     return jsonify(service().infrastructure())
+
+
+@analytics_bp.post("/pipeline/submit")
+def submit_pipeline():
+    config = current_app.config
+    expected = str(config.get("PIPELINE_ADMIN_TOKEN") or "")
+    supplied = request.headers.get("X-Admin-Token", "")
+    if not expected:
+        return jsonify({"error": "Pipeline submission is disabled until PIPELINE_ADMIN_TOKEN is configured."}), 503
+    if not hmac.compare_digest(expected, supplied):
+        return jsonify({"error": "Invalid administrator token."}), 403
+
+    payload = request.get_json(silent=True) or {}
+    return jsonify(
+        service().submit_pipeline(
+            str(payload.get("input_uri") or "").strip(),
+            str(payload.get("output_name") or "").strip(),
+        )
+    ), 202
