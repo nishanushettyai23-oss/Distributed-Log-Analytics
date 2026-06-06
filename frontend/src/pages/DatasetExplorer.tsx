@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, CloudUpload, Columns3, LoaderCircle, Search } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { api } from "../api";
 import { ErrorState, PageHeader, Panel, Skeleton, formatNumber } from "../components/UI";
 import { LogRow } from "../types";
@@ -33,11 +33,13 @@ export default function DatasetExplorer() {
   const [datasetFile,setDatasetFile]=useState<File>();
   const [outputName,setOutputName]=useState("hdfs-full");
   const [adminToken,setAdminToken]=useState("");
+  const [tokenStatus,setTokenStatus]=useState<"idle"|"checking"|"valid"|"invalid">("idle");
   const [uploading,setUploading]=useState(false);
   const [uploaded,setUploaded]=useState<UploadResult>();
   const [submitting,setSubmitting]=useState(false);
   const [pipeline,setPipeline]=useState<PipelineResult>();
   const [pipelineError,setPipelineError]=useState("");
+  const recordsRef=useRef<HTMLDivElement>(null);
   const filters = useQuery({ queryKey: ["filters"], queryFn: () => api<Record<string, string[]>>("/api/filters") });
   const query = useQuery({
     queryKey: ["logs", page, search, level, component, node, errorCode, hour],
@@ -73,6 +75,17 @@ export default function DatasetExplorer() {
     }
   }
 
+  async function verifyToken() {
+    setTokenStatus("checking"); setPipelineError("");
+    try {
+      await api<{valid:boolean}>("/api/admin/verify",{method:"POST",headers:{"X-Admin-Token":adminToken}});
+      setTokenStatus("valid");
+    } catch(error) {
+      setTokenStatus("invalid");
+      setPipelineError(error instanceof Error?error.message:"Administrator token verification failed");
+    }
+  }
+
   async function submitPipeline() {
     setSubmitting(true); setPipelineError(""); setPipeline(undefined);
     try {
@@ -89,20 +102,9 @@ export default function DatasetExplorer() {
   }
 
   function useDeployedSample() {
-    setDatasetFile(undefined);
-    setInputUri(DEPLOYED_SAMPLE_URI);
-    setOutputName("hdfs-full");
-    setPipeline(undefined);
+    setSearch(""); setLevel(""); setComponent(""); setNode(""); setErrorCode(""); setHour(""); setPage(1);
     setPipelineError("");
-    setUploaded({
-      bucket:"distributed-log-analytics-raw-logs",
-      object:"loghub/hdfs/full/HDFS.log",
-      gcs_uri:DEPLOYED_SAMPLE_URI,
-      size_bytes:0,
-      content_type:"text/plain",
-      generation:"existing-cloud-object",
-      stored:true
-    });
+    window.setTimeout(()=>recordsRef.current?.scrollIntoView({behavior:"smooth",block:"start"}),50);
   }
 
   return <div>
@@ -122,23 +124,23 @@ export default function DatasetExplorer() {
           <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
             <div className="text-sm font-semibold">Try the deployed LogHub dataset</div>
             <p className="mt-1 text-xs leading-5 text-slate-500">The existing HDFS dataset is already stored in GCS and its processed records are available in the explorer below. No token is required to view them.</p>
-            <button type="button" onClick={useDeployedSample} className="mt-3 h-9 rounded-md border border-slate-300 px-3 text-xs font-semibold dark:border-slate-600">Use deployed sample dataset</button>
+            <button type="button" onClick={useDeployedSample} className="mt-3 h-9 rounded-md border border-slate-300 px-3 text-xs font-semibold dark:border-slate-600">Explore processed sample records</button>
           </div>
           <div className="flex items-center gap-3 text-xs uppercase text-slate-400"><span className="h-px flex-1 bg-slate-200 dark:bg-slate-700"/><span>Administrator workflow</span><span className="h-px flex-1 bg-slate-200 dark:bg-slate-700"/></div>
           <label className="block text-xs font-medium text-slate-500">Log dataset (.log, .txt, or .json)<input type="file" accept=".log,.txt,.json,text/plain,application/json" onChange={e=>setDatasetFile(e.target.files?.[0])} className="mt-1 block w-full rounded-md border border-slate-200 bg-white p-2 text-xs dark:border-slate-700 dark:bg-slate-900"/></label>
-          <label className="block text-xs font-medium text-slate-500">Administrator token<input type="password" value={adminToken} onChange={e=>setAdminToken(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"/></label>
-          <button type="button" onClick={uploadDataset} disabled={uploading||!adminToken||!datasetFile} className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-blue-600 text-sm font-semibold text-blue-600 disabled:opacity-50">{uploading?<LoaderCircle className="animate-spin" size={16}/>:<CloudUpload size={16}/>} {uploading?"Uploading to GCS...":"1. Upload and store in GCS"}</button>
+          <div><label className="block text-xs font-medium text-slate-500">Administrator token</label><div className="mt-1 flex gap-2"><input type="password" value={adminToken} onChange={e=>{setAdminToken(e.target.value);setTokenStatus("idle")}} className="h-10 min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"/><button type="button" onClick={verifyToken} disabled={!adminToken||tokenStatus==="checking"} className="h-10 rounded-md border border-slate-300 px-3 text-xs font-semibold disabled:opacity-50 dark:border-slate-600">{tokenStatus==="checking"?"Checking...":"Verify"}</button></div>{tokenStatus==="valid"&&<p className="mt-1 text-xs text-emerald-600">Administrator access verified.</p>}{tokenStatus==="invalid"&&<p className="mt-1 text-xs text-red-600">Token is invalid or the API has not loaded it from .env.</p>}</div>
+          <button type="button" onClick={uploadDataset} disabled={uploading||tokenStatus!=="valid"||!datasetFile} className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-blue-600 text-sm font-semibold text-blue-600 disabled:opacity-50">{uploading?<LoaderCircle className="animate-spin" size={16}/>:<CloudUpload size={16}/>} {uploading?"Uploading to GCS...":"1. Upload and store in GCS"}</button>
           {uploaded&&<div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950"><div className="font-semibold">Stored in Google Cloud Storage</div><div className="mt-1 break-all">{uploaded.gcs_uri}</div><div className="mt-1">{uploaded.size_bytes?`${(uploaded.size_bytes/1048576).toFixed(2)} MB - generation ${uploaded.generation}`:"Existing deployed cloud object"}</div></div>}
           <label className="block text-xs font-medium text-slate-500">Stored GCS input<input value={inputUri} readOnly className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-slate-100 px-3 font-mono text-xs dark:border-slate-700 dark:bg-slate-800"/></label>
           <label className="block text-xs font-medium text-slate-500">Output name<input value={outputName} onChange={e=>setOutputName(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"/></label>
-          <button type="button" onClick={submitPipeline} disabled={submitting||!adminToken||!uploaded} className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-blue-600 text-sm font-semibold text-white disabled:opacity-50">{submitting?<LoaderCircle className="animate-spin" size={16}/>:<CloudUpload size={16}/>} {submitting?"Submitting to Dataproc...":datasetFile?"2. Process with Dataproc PySpark":"Reprocess selected dataset"}</button>
+          <button type="button" onClick={submitPipeline} disabled={submitting||tokenStatus!=="valid"||!uploaded} className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-blue-600 text-sm font-semibold text-white disabled:opacity-50">{submitting?<LoaderCircle className="animate-spin" size={16}/>:<CloudUpload size={16}/>} {submitting?"Submitting to Dataproc...":"2. Process uploaded dataset with PySpark"}</button>
           {pipelineError&&<p className="text-xs text-red-600">{pipelineError}</p>}
           {pipeline&&<div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-900 dark:bg-blue-950"><div className="font-semibold">Dataproc job {pipeline.job_id} submitted</div><div className="mt-1">Cluster: {pipeline.cluster_name} ({pipeline.region})</div><div className="mt-1 break-all">Output: {pipeline.output_uri}</div></div>}
           <p className="text-xs leading-5 text-slate-500">The token is required only for cloud-changing actions: uploading objects and launching billable Dataproc jobs. Viewing the deployed dataset and analytics remains public.</p>
         </div>
       </Panel>
     </div>
-    <Panel>
+    <div ref={recordsRef}><Panel title="Processed sample records in BigQuery">
       <div className="mb-4 flex flex-col gap-3 lg:flex-row">
         <div className="relative flex-1"><Search className="absolute left-3 top-2.5 text-slate-400" size={17}/><input value={search} onChange={e => {setSearch(e.target.value);setPage(1)}} className="h-10 w-full rounded-md border border-slate-200 bg-white pl-10 pr-3 text-sm dark:border-slate-700 dark:bg-slate-900" placeholder="Full text search in message"/></div>
         <select value={level} onChange={e => {setLevel(e.target.value);setPage(1)}} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"><option value="">All levels</option>{["INFO","WARN","WARNING","ERROR","FATAL","CRITICAL"].map(v=><option key={v}>{v}</option>)}</select>
@@ -150,6 +152,6 @@ export default function DatasetExplorer() {
       </div>
       {query.isLoading ? <Skeleton className="h-96"/> : <div className="max-h-[62vh] overflow-auto scrollbar"><table className="w-full min-w-[1500px] table-fixed text-left text-xs"><thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-900"><tr>{columns.map(column=><th key={column} className={`${column==="message"?"w-[420px]":"w-[150px]"} border-b border-slate-200 px-3 py-2 uppercase text-slate-500 dark:border-slate-700`}>{column}</th>)}</tr></thead><tbody>{query.data?.items.map((row,index)=><tr key={`${row.timestamp}-${index}`} className="border-b border-slate-100 hover:bg-blue-50/60 dark:border-slate-800 dark:hover:bg-blue-950/20">{columns.map(column=><td key={column} className="truncate px-3 py-2" title={String(row[column] ?? "")}>{String(row[column] ?? "")}</td>)}</tr>)}</tbody></table></div>}
       <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">{formatNumber(query.data?.total)} records</span><div className="flex items-center gap-2"><button className="grid h-8 w-8 place-items-center rounded border border-slate-200 disabled:opacity-40 dark:border-slate-700" disabled={page===1} onClick={()=>setPage(p=>p-1)}><ChevronLeft size={16}/></button><span>Page {page}</span><button className="grid h-8 w-8 place-items-center rounded border border-slate-200 dark:border-slate-700" onClick={()=>setPage(p=>p+1)}><ChevronRight size={16}/></button></div></div>
-    </Panel>
+    </Panel></div>
   </div>;
 }

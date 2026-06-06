@@ -55,6 +55,14 @@ def infrastructure():
     return jsonify(service().infrastructure())
 
 
+@analytics_bp.post("/admin/verify")
+def verify_admin():
+    denied = require_admin()
+    if denied:
+        return denied
+    return jsonify({"valid": True, "message": "Administrator access verified."})
+
+
 @analytics_bp.post("/pipeline/submit")
 def submit_pipeline():
     denied = require_admin()

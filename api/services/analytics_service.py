@@ -211,9 +211,12 @@ class AnalyticsService:
         }
 
     def submit_pipeline(self, input_uri, output_name):
+        normalized_uri = input_uri.strip().replace("\\", "/")
+        match = re.fullmatch(r"gs://([^/]+)/(.+)", normalized_uri)
         expected_prefix = f"gs://{self.config.RAW_BUCKET}/"
-        if not input_uri.startswith(expected_prefix):
+        if not match or match.group(1) != self.config.RAW_BUCKET:
             raise ValueError(f"Input must be stored under {expected_prefix}")
+        input_uri = f"gs://{match.group(1)}/{match.group(2)}"
         if not output_name or not output_name.replace("-", "").replace("_", "").isalnum():
             raise ValueError("Output name may contain only letters, numbers, hyphens, and underscores")
 

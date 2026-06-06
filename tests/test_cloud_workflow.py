@@ -85,6 +85,16 @@ class CloudWorkflowTests(unittest.TestCase):
             "gs://distributed-log-analytics-spark-output/results/hdfs-full",
         )
 
+    def test_pipeline_normalizes_accidental_backslashes(self):
+        result = self.service.submit_pipeline(
+            r"gs://distributed-log-analytics-raw-logs\loghub\hdfs\full\HDFS.log",
+            "hdfs-full",
+        )
+        self.assertEqual(
+            result["input_uri"],
+            "gs://distributed-log-analytics-raw-logs/loghub/hdfs/full/HDFS.log",
+        )
+
     def test_pipeline_rejects_objects_outside_raw_bucket(self):
         with self.assertRaises(ValueError):
             self.service.submit_pipeline("gs://another-bucket/HDFS.log", "hdfs-full")

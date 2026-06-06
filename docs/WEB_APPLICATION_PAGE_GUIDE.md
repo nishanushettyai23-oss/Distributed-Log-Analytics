@@ -32,7 +32,9 @@ This page has two responsibilities:
 
 The interface reports the GCS object URI, byte size, generation, Dataproc job ID, and output URI. These identifiers provide evidence that storage and processing are real cloud operations.
 
-Ordinary visitors do not need an administrator token to view the deployed LogHub dataset, explore its processed records, or inspect analytics. The Dataset page includes **Use deployed sample dataset** beside the upload controls. The token is required only for actions that change cloud resources: uploading a new object or starting a billable Dataproc job.
+Ordinary visitors do not need an administrator token to view the deployed LogHub dataset, explore its processed records, or inspect analytics. The Dataset page includes **Explore processed sample records**, which clears filters and opens the existing BigQuery records. It does not rerun Dataproc. The token is required only for actions that change cloud resources: uploading a new object or starting a billable Dataproc job.
+
+Before uploading, select **Verify** beside the token field. A successful check confirms that the API container loaded the same token from the VM `.env` file.
 
 ### BigQuery Explorer
 
