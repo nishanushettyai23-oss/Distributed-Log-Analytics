@@ -9,14 +9,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY analytics ./analytics
+COPY api ./api
 COPY batch_processing ./batch_processing
 COPY config ./config
 COPY deployment ./deployment
 COPY docs ./docs
 COPY storage ./storage
-COPY visualization ./visualization
 COPY README.md .
 
 EXPOSE 8080
 
-CMD ["python", "visualization/flask_app.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "120", "api.app:app"]

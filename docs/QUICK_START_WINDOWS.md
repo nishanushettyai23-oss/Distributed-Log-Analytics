@@ -10,6 +10,6 @@ The final workflow is:
 4. Upload `batch_processing/spark_job.py` to GCS.
 5. Run the PySpark job on Dataproc.
 6. Verify GCS, BigQuery, and Looker Studio outputs.
-7. Optionally run the Dockerized Flask status page on Compute Engine.
+7. Run the Dockerized Flask API and React observability platform on Compute Engine.
 
 This project uses large-scale batch processing only.

@@ -4,7 +4,7 @@
 
 The Distributed Log Analytics and Anomaly Detection System is deployed on Google Cloud Platform to analyze a large LogHub HDFS dataset using cloud-based distributed batch processing. The project addresses the difficulty of manually inspecting high-volume system logs by automatically parsing log records, extracting operational metrics, and detecting abnormal failure patterns.
 
-The intended users are cloud administrators, DevOps engineers, SRE teams, and students demonstrating Big Data Technologies and Cloud Computing Architecture concepts. The system uses Docker for reproducible dataset preparation and a containerized status page, Google Cloud Storage for raw and processed storage, Dataproc for Apache Spark computation, BigQuery for analytics storage, and Looker Studio for visualization.
+The intended users are cloud administrators, DevOps engineers, SRE teams, and students demonstrating Big Data Technologies and Cloud Computing Architecture concepts. The system uses Docker for reproducible deployment, Google Cloud Storage for raw and processed storage, Dataproc for Apache Spark computation, BigQuery for analytics storage, Flask for REST APIs, and React for enterprise visualization.
 
 The cloud computation is large-scale batch processing on Dataproc.
 
@@ -42,7 +42,7 @@ GCS processed output      BigQuery analytics tables
 Compute Engine VM
         |
         v
-Dockerized Flask Status Page
+Dockerized Flask API + React Platform
 ```
 
 Data flow:
@@ -55,25 +55,25 @@ Data flow:
 6. Spark reads the large dataset from GCS and processes it across Dataproc worker nodes.
 7. Spark writes Parquet evidence to GCS and analytics tables to BigQuery.
 8. Looker Studio reads BigQuery tables for dashboards.
-9. Compute Engine optionally hosts the Dockerized Flask status page for deployment evidence.
+9. Compute Engine hosts the Dockerized Flask API and React analytics platform.
 
 ## 4. Cloud Services Utilized
 
 | Service | Category | Purpose | Integration |
 |---|---|---|---|
-| Docker | Containerization | Packages the dataset prep tool and Flask status page | Builds a reproducible image for local testing and Compute Engine deployment |
+| Docker | Containerization | Packages the dataset prep tool, Flask API, and React platform | Builds reproducible images for local testing and Compute Engine deployment |
 | Google Cloud Storage | Object Storage | Stores full raw HDFS logs, Spark job files, and processed Parquet output | Docker uploads raw data; Dataproc reads/writes through `gs://` paths |
 | Dataproc | Managed Big Data Processing | Runs Apache Spark on cloud infrastructure | Executes `batch_processing/spark_job.py` as a distributed PySpark job |
 | BigQuery | Managed Data Warehouse | Stores processed logs, error frequencies, level distributions, component failures, time trends, and anomalies | Spark writes result tables using the Spark BigQuery connector |
 | Looker Studio | Visualization | Displays charts for error trends, log levels, anomaly counts, and component failures | Connects directly to BigQuery |
-| Compute Engine | Virtual Machines | Hosts the Dockerized Flask status page | Demonstrates VM hosting and container runtime on GCP |
+| Compute Engine | Virtual Machines | Hosts the Dockerized full-stack application | Demonstrates VM hosting and container runtime on GCP |
 | IAM | Security | Controls service access for GCS, Dataproc, BigQuery, and Compute Engine | Uses user or service-account permissions |
 | Cloud Logging and Monitoring | Observability | Captures Dataproc job logs and cluster metrics | Provides proof that Spark executed in the cloud |
 
 ## 5. Deployment Process
 
 1. Download the full LogHub HDFS dataset to `dataset/HDFS_full/HDFS.log`.
-2. Build Docker image `distributed-log-analytics:latest`.
+2. Build the API and frontend images with Docker Compose.
 3. Run Docker locally to validate the dataset and upload it to GCS.
 4. Enable GCP APIs for Dataproc, Storage, BigQuery, Compute Engine, Logging, and Monitoring.
 5. Create raw, code, and output GCS buckets.
@@ -82,7 +82,7 @@ Data flow:
 8. Create Dataproc cluster with 1 master node and 2 worker nodes.
 9. Submit the Spark job with full HDFS GCS input, GCS output, BigQuery dataset, and `--write-bigquery`.
 10. Build Looker Studio charts from BigQuery.
-11. Deploy the Dockerized Flask status page on a Compute Engine VM.
+11. Deploy the Dockerized Flask API and React platform on a Compute Engine VM.
 
 The exact commands are in [GCP_DEPLOYMENT_GUIDE.md](./GCP_DEPLOYMENT_GUIDE.md).
 
@@ -93,7 +93,7 @@ Include screenshots with captions:
 | Screenshot | Caption |
 |---|---|
 | Docker image build | Container image created for dataset prep and status dashboard |
-| Docker container running | Flask status page running from the project image |
+| Docker containers running | Flask API and React analytics platform running from project images |
 | GCS raw bucket with `HDFS.log` | Large LogHub HDFS dataset stored in cloud object storage |
 | Dataset prep output | Dataset line count and file size validated before upload |
 | Dataproc cluster details | Managed Spark cluster with 1 master and 2 workers |
@@ -103,7 +103,7 @@ Include screenshots with captions:
 | BigQuery `logs_dataset` tables | Processed analytics loaded into managed data warehouse |
 | BigQuery table preview | Cloud-generated results available for querying |
 | Looker Studio dashboard | Visual insights for error trends, component failures, and anomalies |
-| Compute Engine VM | Dockerized Flask status page hosted on cloud VM |
+| Compute Engine VM | Dockerized full-stack observability platform hosted on cloud VM |
 
 ## 7. Cloud Features Demonstrated
 

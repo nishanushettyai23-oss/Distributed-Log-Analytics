@@ -2,7 +2,7 @@
 
 ## Description
 
-This project analyzes a large LogHub HDFS dataset using Apache Spark on Google Cloud Dataproc. Raw logs are stored in Google Cloud Storage, processed in parallel on a managed Spark cluster, written to BigQuery, and visualized in Looker Studio. Docker is used for reproducible dataset preparation and for a lightweight Flask status page that can run locally or on a Compute Engine VM.
+This project analyzes the LogHub HDFS dataset using Apache Spark on Google Cloud Dataproc. More than 10.6 million processed records are stored in BigQuery and exposed through a modular Flask REST API to a React/TypeScript enterprise observability platform.
 
 This project uses large-scale batch processing only.
 
@@ -26,20 +26,21 @@ Spark Feature Extraction and Anomaly Detection
         +----------------------+
         |                      |
         v                      v
-GCS Parquet Output       BigQuery Analytics Tables
+GCS Parquet Output       BigQuery Warehouse
                                |
                                v
-                        Looker Studio Dashboard
-
-Optional evidence layer:
-Compute Engine VM -> Dockerized Flask Status Page
+                        Flask REST API
+                               |
+                               v
+                   React Observability Platform
 ```
 
 ## Main Components
 
 - `batch_processing/spark_job.py`: Dataproc PySpark job for parsing, feature extraction, analytics, anomaly detection, GCS output, and BigQuery writes.
 - `deployment/prepare_large_dataset.py`: Docker-friendly validator/uploader for the full HDFS dataset.
-- `visualization/flask_app.py`: Dockerized Flask status page for local or Compute Engine deployment.
+- `api/`: Flask blueprints, service layer, repository layer, BigQuery analytics, read-only SQL, cloud metadata, and exports.
+- `frontend/`: React, TypeScript, Tailwind, React Query, Recharts, Framer Motion, Monaco, and React Flow application.
 - `docs/GCP_DEPLOYMENT_GUIDE.md`: Step-by-step GCP execution guide.
 - `docs/GCP_CLOUD_EXECUTION_PLAN.md`: Report outline aligned with the cloud deployment rubric.
 
@@ -61,13 +62,7 @@ The included `dataset/HDFS_2k/HDFS_2k.log` file is only for quick smoke testing.
 
 ## Docker Quick Start
 
-Build the image:
-
-```bash
-docker build -t distributed-log-analytics:latest .
-```
-
-Run the status page locally:
+Build and run both production containers:
 
 ```bash
 docker compose up --build
@@ -76,13 +71,13 @@ docker compose up --build
 Open:
 
 ```text
-http://localhost:8080
+http://localhost:3000
 ```
 
 Validate a small smoke-test dataset without upload:
 
 ```bash
-docker run --rm -v "$PWD:/app" distributed-log-analytics:latest \
+docker run --rm -v "$PWD:/app" distributed-log-analytics-api:latest \
   python deployment/prepare_large_dataset.py \
   --local-path dataset/HDFS_2k/HDFS_2k.log \
   --gcs-path gs://distributed-log-analytics-raw-logs/loghub/hdfs/smoke/HDFS_2k.log \
@@ -100,7 +95,7 @@ docker run --rm -v "$PWD:/app" distributed-log-analytics:latest \
 6. Submit the PySpark job on Dataproc.
 7. Verify output in GCS and BigQuery.
 8. Build Looker Studio charts from BigQuery tables.
-9. Optionally deploy the Dockerized Flask page on Compute Engine.
+9. Deploy the Docker Compose API and React platform on Compute Engine.
 
 Primary command:
 
@@ -137,14 +132,29 @@ The Spark job writes:
 Capture screenshots of:
 
 - Docker image build.
-- Docker container status page.
+- React executive dashboard and Flask API health.
 - GCS bucket containing the full `HDFS.log`.
 - Dataproc cluster with 1 master and 2 workers.
 - Dataproc job details and driver logs.
 - GCS processed Parquet output.
 - BigQuery populated tables.
 - Looker Studio dashboard.
-- Compute Engine VM running the Dockerized Flask page.
+- Compute Engine VM running the Dockerized full-stack platform.
+
+## Application Pages
+
+- Executive Dashboard
+- Log Analytics
+- Anomaly Detection
+- Dataset Explorer
+- BigQuery Explorer
+- Infrastructure
+- Architecture
+- Reports
+
+The application queries the real table `logs_dataset.processed_logs` with columns:
+`timestamp`, `level`, `service`, `component`, `block_id`, `node_id`,
+`error_code`, `hour`, `message`, and `source_file`.
 
 ## References
 

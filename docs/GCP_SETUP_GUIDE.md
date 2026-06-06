@@ -10,6 +10,6 @@ Use the consolidated guide for the final implementation:
 - Dataproc Spark batch execution.
 - BigQuery analytics tables.
 - Looker Studio dashboard.
-- Dockerized Flask status page on Compute Engine.
+- Dockerized Flask API and React observability platform on Compute Engine.
 
 The final implementation uses large-scale batch processing on Dataproc.

@@ -21,6 +21,11 @@ dataset/HDFS_v3_TraceBench/
 
 # Docker/local runtime files
 .docker-data/
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
 
 # Assignment source/rubric files should stay outside the deployable project.
 CCTA Tutorial Guidelines and Rubrics*

@@ -1,17 +1,35 @@
 services:
-  log-analytics-status:
-    build: .
-    image: distributed-log-analytics:latest
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: distributed-log-analytics-api:latest
+    environment:
+      PROJECT_ID: ${PROJECT_ID:-distributed-log-analytics}
+      REGION: ${REGION:-us-central1}
+      CLUSTER_NAME: ${CLUSTER_NAME:-log-analytics-cluster}
+      DATAPROC_WORKERS: ${DATAPROC_WORKERS:-2}
+      DATAPROC_MACHINE_TYPE: ${DATAPROC_MACHINE_TYPE:-n2-standard-2}
+      RAW_BUCKET: ${RAW_BUCKET:-distributed-log-analytics-raw-logs}
+      OUTPUT_BUCKET: ${OUTPUT_BUCKET:-distributed-log-analytics-spark-output}
+      BQ_DATASET: ${BQ_DATASET:-logs_dataset}
+      BQ_TABLE: processed_logs
+      PROCESSED_RECORDS: 10685241
     ports:
       - "8080:8080"
-    environment:
-      PROJECT_ID: distributed-log-analytics
-      REGION: us-central1
-      RAW_BUCKET: distributed-log-analytics-raw-logs
-      OUTPUT_BUCKET: distributed-log-analytics-spark-output
-      BQ_DATASET: logs_dataset
-      LOOKER_STUDIO_URL: https://lookerstudio.google.com
-      DATASET_LOCAL_PATH: dataset/HDFS_full/HDFS.log
-      DATASET_GCS_PATH: gs://distributed-log-analytics-raw-logs/loghub/hdfs/full/HDFS.log
-    volumes:
-      - .:/app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: distributed-log-analytics-web:latest
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:80"

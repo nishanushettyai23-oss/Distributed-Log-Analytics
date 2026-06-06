@@ -10,6 +10,8 @@ dataset/HDFS_full/
 dataset/HDFS_v1/
 dataset/HDFS_v2/
 dataset/HDFS_v3_TraceBench/
+frontend/node_modules/
+frontend/dist/
 
 .env
 *.key

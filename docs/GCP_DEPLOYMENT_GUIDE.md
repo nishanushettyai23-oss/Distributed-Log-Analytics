@@ -22,13 +22,13 @@ Spark Feature Extraction and Anomaly Detection
         +----------------------+
         |                      |
         v                      v
-GCS Parquet Output       BigQuery Analytics Tables
+GCS Parquet Output       BigQuery Warehouse
                                |
                                v
-                        Looker Studio Dashboard
-
-Optional evidence layer:
-Compute Engine VM -> Dockerized Flask Status Page
+                        Flask REST API
+                               |
+                               v
+                   React Observability Platform
 ```
 
 ## 1. Set Variables
@@ -44,7 +44,7 @@ export RAW_BUCKET="${PROJECT_ID}-raw-logs"
 export CODE_BUCKET="${PROJECT_ID}-spark-code"
 export OUTPUT_BUCKET="${PROJECT_ID}-spark-output"
 export BQ_DATASET="logs_dataset"
-export IMAGE_NAME="distributed-log-analytics:latest"
+export IMAGE_NAME="distributed-log-analytics-api:latest"
 export LARGE_LOCAL_PATH="dataset/HDFS_full/HDFS.log"
 export LARGE_GCS_PATH="gs://${RAW_BUCKET}/loghub/hdfs/full/HDFS.log"
 ```
@@ -60,7 +60,7 @@ $env:RAW_BUCKET="$env:PROJECT_ID-raw-logs"
 $env:CODE_BUCKET="$env:PROJECT_ID-spark-code"
 $env:OUTPUT_BUCKET="$env:PROJECT_ID-spark-output"
 $env:BQ_DATASET="logs_dataset"
-$env:IMAGE_NAME="distributed-log-analytics:latest"
+$env:IMAGE_NAME="distributed-log-analytics-api:latest"
 $env:LARGE_LOCAL_PATH="dataset/HDFS_full/HDFS.log"
 $env:LARGE_GCS_PATH="gs://$env:RAW_BUCKET/loghub/hdfs/full/HDFS.log"
 ```
@@ -81,13 +81,13 @@ Use the small included dataset only for a quick smoke test:
 dataset/HDFS_2k/HDFS_2k.log
 ```
 
-## 3. Build Docker Image
+## 3. Build Full-Stack Docker Images
 
 ```bash
-docker build -t distributed-log-analytics:latest .
+docker compose build
 ```
 
-Run the status page locally:
+Run the API and React platform:
 
 ```bash
 docker compose up --build
@@ -96,10 +96,10 @@ docker compose up --build
 Open:
 
 ```text
-http://localhost:8080
+http://localhost:3000
 ```
 
-Screenshot this page for Docker evidence.
+The Flask API is available at `http://localhost:8080/api/health`.
 
 ## 4. Enable GCP APIs
 
@@ -131,7 +131,7 @@ docker run --rm \
   -v "$PWD/service-account.json:/tmp/key.json:ro" \
   -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json \
   -e PROJECT_ID=$PROJECT_ID \
-  distributed-log-analytics:latest \
+  distributed-log-analytics-api:latest \
   python deployment/prepare_large_dataset.py \
   --local-path $LARGE_LOCAL_PATH \
   --gcs-path $LARGE_GCS_PATH
@@ -145,7 +145,7 @@ docker run --rm `
   -v "${PWD}\service-account.json:/tmp/key.json:ro" `
   -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/key.json `
   -e PROJECT_ID=$env:PROJECT_ID `
-  distributed-log-analytics:latest `
+  distributed-log-analytics-api:latest `
   python deployment/prepare_large_dataset.py `
   --local-path $env:LARGE_LOCAL_PATH `
   --gcs-path $env:LARGE_GCS_PATH
@@ -154,7 +154,7 @@ docker run --rm `
 Smoke-test validation with `HDFS_2k`:
 
 ```bash
-docker run --rm -v "$PWD:/app" distributed-log-analytics:latest \
+docker run --rm -v "$PWD:/app" distributed-log-analytics-api:latest \
   python deployment/prepare_large_dataset.py \
   --local-path dataset/HDFS_2k/HDFS_2k.log \
   --gcs-path gs://$RAW_BUCKET/loghub/hdfs/smoke/HDFS_2k.log \
@@ -230,7 +230,7 @@ bq head $PROJECT_ID:$BQ_DATASET.processed_logs
 Capture screenshots of:
 
 - Docker image build.
-- Docker status page.
+- React observability platform and Flask API health endpoint.
 - GCS full HDFS dataset.
 - Dataproc cluster with 1 master and 2 workers.
 - Dataproc job details and driver logs.
@@ -250,7 +250,7 @@ Recommended charts:
 - Table: `logs_dataset.anomalies`.
 - Scorecards: total logs, total warnings/errors, total anomalies, distinct components.
 
-## 12. Deploy Dockerized Status Page on Compute Engine
+## 12. Deploy Full-Stack Platform on Compute Engine
 
 Create a VM:
 
@@ -267,31 +267,22 @@ gcloud compute instances create log-analytics-docker-vm \
 Allow HTTP:
 
 ```bash
-gcloud compute firewall-rules create allow-log-analytics-status-8080 \
-  --allow tcp:8080 \
+gcloud compute firewall-rules create allow-log-analytics-platform-3000 \
+  --allow tcp:3000 \
   --target-tags=http-server \
   --project=$PROJECT_ID
 ```
 
-SSH into the VM, install Docker, copy the project, and run:
+SSH into the VM, install Docker Compose, clone the project, then run:
 
 ```bash
-docker build -t distributed-log-analytics:latest .
-docker run -d --name log-analytics-status \
-  -p 8080:8080 \
-  -e PROJECT_ID=distributed-log-analytics \
-  -e REGION=us-central1 \
-  -e RAW_BUCKET=distributed-log-analytics-raw-logs \
-  -e OUTPUT_BUCKET=distributed-log-analytics-spark-output \
-  -e BQ_DATASET=logs_dataset \
-  -e LOOKER_STUDIO_URL=https://lookerstudio.google.com \
-  distributed-log-analytics:latest
+docker compose up -d --build
 ```
 
 Open:
 
 ```text
-http://VM_EXTERNAL_IP:8080
+http://VM_EXTERNAL_IP:3000
 ```
 
 ## 13. Clean Up

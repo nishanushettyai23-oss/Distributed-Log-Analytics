@@ -11,7 +11,7 @@ Large LogHub HDFS Dataset
   -> Dataproc Apache Spark
   -> BigQuery
   -> Looker Studio
-  -> Dockerized Flask Status Page on Compute Engine
+  -> Dockerized Flask API + React Observability Platform on Compute Engine
 ```
 
 Key implementation points:
