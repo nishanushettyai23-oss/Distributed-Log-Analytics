@@ -8,6 +8,7 @@ import { LogRow } from "../types";
 type LogsResponse = { items: LogRow[]; page: number; page_size: number; total: number };
 type PipelineResult = { job_id: string; status: string; input_uri: string; output_uri: string; cluster_name: string; region: string };
 type UploadResult = { bucket:string; object:string; gcs_uri:string; size_bytes:number; content_type:string; generation:string; stored:boolean };
+const DEPLOYED_SAMPLE_URI="gs://distributed-log-analytics-raw-logs/loghub/hdfs/full/HDFS.log";
 
 function optionValues(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -28,7 +29,7 @@ export default function DatasetExplorer() {
   const [node, setNode] = useState("");
   const [errorCode, setErrorCode] = useState("");
   const [hour, setHour] = useState("");
-  const [inputUri,setInputUri]=useState("gs://distributed-log-analytics-raw-logs/loghub/hdfs/full/HDFS.log");
+  const [inputUri,setInputUri]=useState(DEPLOYED_SAMPLE_URI);
   const [datasetFile,setDatasetFile]=useState<File>();
   const [outputName,setOutputName]=useState("hdfs-full");
   const [adminToken,setAdminToken]=useState("");
@@ -87,6 +88,23 @@ export default function DatasetExplorer() {
     }
   }
 
+  function useDeployedSample() {
+    setDatasetFile(undefined);
+    setInputUri(DEPLOYED_SAMPLE_URI);
+    setOutputName("hdfs-full");
+    setPipeline(undefined);
+    setPipelineError("");
+    setUploaded({
+      bucket:"distributed-log-analytics-raw-logs",
+      object:"loghub/hdfs/full/HDFS.log",
+      gcs_uri:DEPLOYED_SAMPLE_URI,
+      size_bytes:0,
+      content_type:"text/plain",
+      generation:"existing-cloud-object",
+      stored:true
+    });
+  }
+
   return <div>
     <PageHeader title="Dataset and Batch Processing" subtitle="Inspect records already processed into BigQuery or submit an approved Cloud Storage object to the Dataproc PySpark pipeline." />
     <div className="mb-5 grid gap-5 xl:grid-cols-[1fr_0.9fr]">
@@ -101,16 +119,22 @@ export default function DatasetExplorer() {
       </Panel>
       <Panel title="Store and process a dataset">
         <div className="space-y-3">
+          <div className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
+            <div className="text-sm font-semibold">Try the deployed LogHub dataset</div>
+            <p className="mt-1 text-xs leading-5 text-slate-500">The existing HDFS dataset is already stored in GCS and its processed records are available in the explorer below. No token is required to view them.</p>
+            <button type="button" onClick={useDeployedSample} className="mt-3 h-9 rounded-md border border-slate-300 px-3 text-xs font-semibold dark:border-slate-600">Use deployed sample dataset</button>
+          </div>
+          <div className="flex items-center gap-3 text-xs uppercase text-slate-400"><span className="h-px flex-1 bg-slate-200 dark:bg-slate-700"/><span>Administrator workflow</span><span className="h-px flex-1 bg-slate-200 dark:bg-slate-700"/></div>
           <label className="block text-xs font-medium text-slate-500">Log dataset (.log, .txt, or .json)<input type="file" accept=".log,.txt,.json,text/plain,application/json" onChange={e=>setDatasetFile(e.target.files?.[0])} className="mt-1 block w-full rounded-md border border-slate-200 bg-white p-2 text-xs dark:border-slate-700 dark:bg-slate-900"/></label>
           <label className="block text-xs font-medium text-slate-500">Administrator token<input type="password" value={adminToken} onChange={e=>setAdminToken(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"/></label>
           <button type="button" onClick={uploadDataset} disabled={uploading||!adminToken||!datasetFile} className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-blue-600 text-sm font-semibold text-blue-600 disabled:opacity-50">{uploading?<LoaderCircle className="animate-spin" size={16}/>:<CloudUpload size={16}/>} {uploading?"Uploading to GCS...":"1. Upload and store in GCS"}</button>
-          {uploaded&&<div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950"><div className="font-semibold">Stored in Google Cloud Storage</div><div className="mt-1 break-all">{uploaded.gcs_uri}</div><div className="mt-1">{(uploaded.size_bytes/1048576).toFixed(2)} MB - generation {uploaded.generation}</div></div>}
+          {uploaded&&<div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950"><div className="font-semibold">Stored in Google Cloud Storage</div><div className="mt-1 break-all">{uploaded.gcs_uri}</div><div className="mt-1">{uploaded.size_bytes?`${(uploaded.size_bytes/1048576).toFixed(2)} MB - generation ${uploaded.generation}`:"Existing deployed cloud object"}</div></div>}
           <label className="block text-xs font-medium text-slate-500">Stored GCS input<input value={inputUri} readOnly className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-slate-100 px-3 font-mono text-xs dark:border-slate-700 dark:bg-slate-800"/></label>
           <label className="block text-xs font-medium text-slate-500">Output name<input value={outputName} onChange={e=>setOutputName(e.target.value)} className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"/></label>
-          <button type="button" onClick={submitPipeline} disabled={submitting||!adminToken||!uploaded} className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-blue-600 text-sm font-semibold text-white disabled:opacity-50">{submitting?<LoaderCircle className="animate-spin" size={16}/>:<CloudUpload size={16}/>} {submitting?"Submitting to Dataproc...":"2. Process with Dataproc PySpark"}</button>
+          <button type="button" onClick={submitPipeline} disabled={submitting||!adminToken||!uploaded} className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-blue-600 text-sm font-semibold text-white disabled:opacity-50">{submitting?<LoaderCircle className="animate-spin" size={16}/>:<CloudUpload size={16}/>} {submitting?"Submitting to Dataproc...":datasetFile?"2. Process with Dataproc PySpark":"Reprocess selected dataset"}</button>
           {pipelineError&&<p className="text-xs text-red-600">{pipelineError}</p>}
           {pipeline&&<div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-900 dark:bg-blue-950"><div className="font-semibold">Dataproc job {pipeline.job_id} submitted</div><div className="mt-1">Cluster: {pipeline.cluster_name} ({pipeline.region})</div><div className="mt-1 break-all">Output: {pipeline.output_uri}</div></div>}
-          <p className="text-xs leading-5 text-slate-500">The Process button remains disabled until GCS confirms storage. Large uploads can take several minutes; keep this page open until the stored object details appear.</p>
+          <p className="text-xs leading-5 text-slate-500">The token is required only for cloud-changing actions: uploading objects and launching billable Dataproc jobs. Viewing the deployed dataset and analytics remains public.</p>
         </div>
       </Panel>
     </div>

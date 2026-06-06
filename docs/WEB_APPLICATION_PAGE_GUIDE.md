@@ -32,6 +32,8 @@ This page has two responsibilities:
 
 The interface reports the GCS object URI, byte size, generation, Dataproc job ID, and output URI. These identifiers provide evidence that storage and processing are real cloud operations.
 
+Ordinary visitors do not need an administrator token to view the deployed LogHub dataset, explore its processed records, or inspect analytics. The Dataset page includes **Use deployed sample dataset** beside the upload controls. The token is required only for actions that change cloud resources: uploading a new object or starting a billable Dataproc job.
+
 ### BigQuery Explorer
 
 This is a read-only SQL workspace for verifying the stored output. It blocks data-changing SQL and shows the BigQuery job ID, rows returned, execution time, and bytes processed.
