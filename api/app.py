@@ -3,6 +3,7 @@ import os
 
 from flask import Flask, jsonify
 from flask_cors import CORS
+from werkzeug.exceptions import HTTPException
 
 from .config import Config
 from .repositories.bigquery_repository import BigQueryRepository
@@ -27,8 +28,27 @@ def create_app():
     app.register_blueprint(query_bp)
     app.register_blueprint(reports_bp)
 
+    @app.get("/")
+    def index():
+        return jsonify(
+            {
+                "service": "Distributed Log Analytics API",
+                "status": "running",
+                "health": "/api/health",
+            }
+        )
+
     @app.errorhandler(Exception)
     def handle_error(error):
+        if isinstance(error, HTTPException):
+            return jsonify(
+                {
+                    "error": error.name,
+                    "message": error.description,
+                    "status": error.code,
+                }
+            ), error.code
+
         logging.exception("API request failed")
         status = 400 if isinstance(error, ValueError) else 503
         return jsonify(
